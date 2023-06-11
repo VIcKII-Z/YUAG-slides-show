@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Art Gallery Slideshow</title>
+</head>
+<link rel="stylesheet" href="/static/slideshow.css">
+<body>
+	<h1 class="header" id="title">Art Gallery Slideshow</h1>
+	<p class="header" id="time"><span id="refresh_time"></span></p>
+  <div id="objectCard" previous_obj={{obj.id}}>
+  <img src="{{ obj.image if obj.image else '/static/image_not_available.png' }}" alt="{{ obj.label }}, {{ obj.date }}" style="max-height: 240px; max-width: 100%;">
+    <section>
+        <h2>{{ obj.label }}</h2>
+      </section>
+    <section>
+        <h2>{{ obj.date }}</h2>
+      </section>
+    <section>
+        <ul>
+			{% for p in obj.part.split('||')  %}
+        {% if p%}
+          <li><strong>{{ p.split('|')[1] }}:</strong> <strong>{{ p.split('|')[0] }}<strong></li>
+        {% endif %}
+      {% endfor %}
+        </ul>
+      </section>
+    </div>
+    <section id="buttons">
+      <button id="previousButton" onclick="getPreviousObject()">Previous</button>
+      <button id="pauseResumeButton" onclick="togglePauseResume()">Pause</button>
+      <button onclick="getNextObject()">Next</button>
+    </section>
+    
+  
+	<script>
+    var intervalId;
+    var paused = false;
+    var pauseResumeButton = document.getElementById("pauseResumeButton");
+
+		document.getElementById("refresh_time").innerHTML = new Date().toLocaleString();
+    console.log(document.cookie)
+    function getPreviousObject() {
+      clearInterval(intervalId);
+      fetch("/get_previous_object")
+        .then(response => response.json())
+        .then(data => {
+          setNextObject(data);
+          intervalId = setInterval(getNextObject, 5000);
+          togglePauseResume();
+        });
+    }
+
+    
+    function getNextObject() {
+      clearInterval(intervalId);
+      document.cookie = 'previous_object=' + document.getElementById("objectCard").getAttribute("previous_obj");
+      console.log(document.cookie)
+      fetch("/get_object")
+        .then(response => response.json())
+        .then(data => {
+          setNextObject(data);
+          intervalId = setInterval(getNextObject, 5000);
+        })
+    }
+
+    function setNextObject(data) {
+      document.getElementById("objectCard").innerHTML = `
+        <img src="${data.image || '/static/image_not_available.png'}" alt="${data.label}, ${data.date}" style="max-height: 240px; max-width: 100%;">
+        <section>
+          <h2>${data.label}</h2>
+        </section>
+        <section>
+          <h2>${data.date}</h2>
+        </section>
+        <section>
+          <ul>
+            ${data.part.split('||').filter(p => p).map(p => `
+              <li><strong>${p.split('|')[1]}:</strong> <strong>${p.split('|')[0]}</strong></li>
+            `).join('')}
+          </ul>
+        </section>
+      `;
+      document.getElementById("objectCard").setAttribute("previous_obj", data.id);
+    }
+
+    function togglePauseResume() {
+      paused = !paused;
+      if (paused) {
+        clearInterval(intervalId);
+        pauseResumeButton.innerText = "Resume";
+      } else {
+        getNextObject();
+        pauseResumeButton.innerText = "Pause";
+      }
+    }
+
+    getNextObject();
+	</script>
+</body>
+</html>
